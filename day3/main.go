@@ -29,16 +29,12 @@ func getInput() (i [][]string) {
 func traverse(sx, sy int) (t int) {
 	data := getInput()
 	x, y := 0, 0
-	maxx, maxy := len(data[0])-1, len(data)-1
+	maxx, maxy := len(data[0]), len(data)-1
 
 	for y < maxy {
 		y += sy
-		x += sx
+		x = (x + sx) % maxx
 		row := data[y]
-
-		if x > maxx {
-			x = x - len(row)
-		}
 
 		if row[x] == "#" {
 			t++
