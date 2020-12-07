@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -17,58 +16,28 @@ func main() {
 }
 
 func part1() (sum uint) {
-	i := getInput()
-	ui := uniqueInput(i)
-	for _, s := range ui {
-		sum += uint(len(s))
+	i := make(chan []string, 4096)
+	pi := make(chan answers, 4096)
+	go streamInput(i)
+	go processInput(i, pi)
+	for a := range pi {
+		sum += a.unique
 	}
 	return
 }
+
 func part2() (sum uint) {
-	i := getInput()
-	ui := concensusInput(i)
-	for _, s := range ui {
-		sum += uint(len(s))
+	i := make(chan []string, 4096)
+	pi := make(chan answers, 4096)
+	go streamInput(i)
+	go processInput(i, pi)
+	for a := range pi {
+		sum += a.concencus
 	}
 	return
 }
 
-func uniqueInput(i [][]string) (u []string) {
-	for _, groupAnswers := range i {
-		uniqueAnswers := make(map[string]bool)
-		for _, ans := range strings.Join(groupAnswers, "") {
-			uniqueAnswers[string(ans)] = true
-		}
-		var b bytes.Buffer
-		for ans := range uniqueAnswers {
-			b.WriteString(ans)
-		}
-		u = append(u, b.String())
-	}
-	return
-}
-
-func concensusInput(i [][]string) (u []string) {
-	for _, groupAnswers := range i {
-		answersCount := make(map[string]uint)
-		for _, ans := range groupAnswers {
-			for _, c := range ans {
-				curr := answersCount[string(c)]
-				answersCount[string(c)] = curr + 1
-			}
-		}
-		var b bytes.Buffer
-		for ans, count := range answersCount {
-			if int(count) == len(groupAnswers) {
-				b.WriteString(ans)
-			}
-		}
-		u = append(u, b.String())
-	}
-	return
-}
-
-func getInput() (i [][]string) {
+func streamInput(i chan<- []string) {
 	f, err := os.Open("./input.txt")
 	if err != nil {
 		panic("No file!")
@@ -89,13 +58,45 @@ func getInput() (i [][]string) {
 	}
 	s.Split(onBlankLine)
 	for s.Scan() {
-		all := strings.Fields(s.Text())
-		i = append(i, all)
+		i <- strings.Fields(s.Text())
 	}
+
+	close(i)
 
 	if s.Err() != nil {
 		panic("File parse error!")
 	}
+}
 
-	return
+type answers struct {
+	data      []string
+	unique    uint
+	concencus uint
+}
+
+func processInput(i <-chan []string, ci chan<- answers) {
+	for groupAnswers := range i {
+		answersCount := make(map[string]uint)
+
+		for _, ans := range groupAnswers {
+			for _, c := range ans {
+				curr := answersCount[string(c)]
+				answersCount[string(c)] = curr + 1
+			}
+		}
+
+		unique, concensus := uint(len(answersCount)), uint(0)
+		for _, count := range answersCount {
+			if int(count) == len(groupAnswers) {
+				concensus++
+			}
+		}
+
+		ci <- answers{
+			groupAnswers,
+			unique,
+			concensus,
+		}
+	}
+	close(ci)
 }
