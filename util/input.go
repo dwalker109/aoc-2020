@@ -5,8 +5,8 @@ import (
 	"os"
 )
 
-func StreamInput(i chan<- string) {
-	f, err := os.Open("./input.txt")
+func StreamInput(i chan<- string, fn string) {
+	f, err := os.Open(fn)
 	if err != nil {
 		panic("No file!")
 	}

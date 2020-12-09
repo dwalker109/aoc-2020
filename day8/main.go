@@ -42,7 +42,7 @@ func main() {
 func part1() int {
 	i := make(chan string, 4096)
 
-	go util.StreamInput(i)
+	go util.StreamInput(i, "./input.txt")
 	n, _ := maxAccumulator(parseInput(i))
 
 	return n
@@ -52,7 +52,7 @@ func part2() int {
 	i := make(chan string, 4096)
 	variants := make(chan []instruction, 4096)
 
-	go util.StreamInput(i)
+	go util.StreamInput(i, "./input.txt")
 	go fixOps(parseInput(i), variants)
 
 	for variant := range variants {
