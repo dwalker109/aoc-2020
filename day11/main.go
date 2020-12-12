@@ -3,32 +3,42 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/dwalker109/aoc-2020/util"
 	"regexp"
 	"strings"
+
+	"github.com/dwalker109/aoc-2020/util"
 )
 
 func main() {
 	p1 := part1("./input.txt")
+	p2 := part2("./input.txt")
 
 	fmt.Println("Part 1:", p1)
+	fmt.Println("Part 2:", p2)
 }
 
 func part1(p string) int {
 	i := make(chan string, 128)
 	go util.StreamInput(i, p)
 	grid := parseInput(i)
-	c := fillSeats(grid)
+	c := fillSeats(grid, seatgrid.shouldToggleOccupancyAdjacent)
 	return c
 }
 
-func fillSeats(grid seatgrid) (c int) {
-	orig := cloneGridVals(grid)
+func part2(p string) int {
+	i := make(chan string, 128)
+	go util.StreamInput(i, p)
+	grid := parseInput(i)
+	c := fillSeats(grid, seatgrid.shouldToggleOccupancyCast)
+	return c
+}
+
+func fillSeats(grid seatgrid, toggleCheck func(seatgrid, int, int) bool) (c int) {
 	for {
-		orig = cloneGridVals(grid)
+		orig := grid.clone()
 		for row := 0; row <= grid.lastY(); row++ {
 			for seat := 0; seat <= grid.lastX(); seat++ {
-				if orig.shouldToggleOccupancy(row, seat) {
+				if toggleCheck(orig, row, seat) {
 					grid.toggle(row, seat)
 				}
 			}
@@ -41,9 +51,11 @@ func fillSeats(grid seatgrid) (c int) {
 	return grid.occupied()
 }
 
-func cloneGridVals(source seatgrid) seatgrid {
-	clone := make(seatgrid, len(source))
-	for i, row := range source {
+type seatgrid [][]string
+
+func (sg seatgrid) clone() seatgrid {
+	clone := make(seatgrid, len(sg))
+	for i, row := range sg {
 		rowclone := make([]string, len(row))
 		copy(rowclone, row)
 		clone[i] = rowclone
@@ -51,9 +63,7 @@ func cloneGridVals(source seatgrid) seatgrid {
 	return clone
 }
 
-type seatgrid [][]string
-
-func (sg seatgrid) shouldToggleOccupancy(y, x int) bool {
+func (sg seatgrid) shouldToggleOccupancyAdjacent(y, x int) bool {
 	curr := sg[y][x]
 
 	sx := util.MaxInt(x-1, 0)
@@ -80,6 +90,83 @@ func (sg seatgrid) shouldToggleOccupancy(y, x int) bool {
 	}
 
 	if curr == "#" && len(matches) >= 4 {
+		return true
+	}
+
+	return false
+}
+
+func (sg seatgrid) shouldToggleOccupancyCast(y, x int) bool {
+	curr := sg[y][x]
+
+	var sb strings.Builder
+
+	cast := func(walk func(j, i int) (int, int)) func() {
+		j, i := y, x
+		return func() {
+			for {
+				j, i = walk(j, i)
+
+				if j == -1 || j == sg.lastY()+1 || i == -1 || i == sg.lastX()+1 {
+					break
+				}
+
+				if sg[j][i] == "#" || sg[j][i] == "L" {
+					sb.WriteString(sg[j][i])
+					break
+				}
+			}
+		}
+	}
+
+	// U
+	cast(func(j, i int) (int, int) {
+		return j - 1, i
+	})()
+
+	// UR
+	cast(func(j, i int) (int, int) {
+		return j - 1, i + 1
+	})()
+
+	// R
+	cast(func(j, i int) (int, int) {
+		return j, i + 1
+	})()
+
+	// RD
+	cast(func(j, i int) (int, int) {
+		return j + 1, i + 1
+	})()
+
+	// D
+	cast(func(j, i int) (int, int) {
+		return j + 1, i
+	})()
+
+	// DL
+	cast(func(j, i int) (int, int) {
+		return j + 1, i - 1
+	})()
+
+	// L
+	cast(func(j, i int) (int, int) {
+		return j, i - 1
+	})()
+
+	// UL
+	cast(func(j, i int) (int, int) {
+		return j - 1, i - 1
+	})()
+
+	check := sb.String()
+	matches := regexp.MustCompile("#").FindAllStringIndex(check, -1)
+
+	if curr == "L" && len(matches) == 0 {
+		return true
+	}
+
+	if curr == "#" && len(matches) >= 5 {
 		return true
 	}
 
