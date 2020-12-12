@@ -19,55 +19,36 @@ func main() {
 func part1(p string) int {
 	i := make(chan string, 128)
 	go util.StreamInput(i, p)
-	md := navigateSimple(i)
+	s := ship.NewSimpleShip(0, 0, 90)
+	md := navigate(i, s)
 	return md
 }
 
 func part2(p string) int {
 	i := make(chan string, 128)
 	go util.StreamInput(i, p)
-	md := navigateWaypoint(i)
+	s := ship.NewWaypointShip(0, 0, 10, 1)
+	md := navigate(i, s)
 	return md
 }
 
-func navigateSimple(i <-chan string) int {
-	s := ship.NewSimpleShip(0, 0, 90)
-
-	for l := range i {
-		com := string(l[0])
-		dis, _ := strconv.ParseInt(l[1:], 10, 0)
-
-		switch com {
-		case "F":
-			s.Forward(int(dis))
-		case "L":
-			s.Left(int(dis))
-		case "R":
-			s.Right((int(dis)))
-		default:
-			s.MoveDir(com, int(dis))
+func navigate(i <-chan string, s ship.Ship) int {
+	for instr := range i {
+		comm := string(instr[0])
+		dist, err := strconv.ParseInt(instr[1:], 10, 0)
+		if err != nil {
+			panic("invalid instruction")
 		}
-	}
 
-	return s.Manhattan()
-}
-
-func navigateWaypoint(i <-chan string) int {
-	s := ship.NewWaypointShip(0, 0, 10, 1)
-
-	for l := range i {
-		com := string(l[0])
-		dis, _ := strconv.ParseInt(l[1:], 10, 0)
-
-		switch com {
+		switch comm {
 		case "F":
-			s.Forward(int(dis))
+			s.Forward(int(dist))
 		case "L":
-			s.Left(int(dis))
+			s.Left(int(dist))
 		case "R":
-			s.Right((int(dis)))
+			s.Right((int(dist)))
 		default:
-			s.MoveWaypointDir(com, int(dis))
+			s.Move(comm, int(dist))
 		}
 	}
 
