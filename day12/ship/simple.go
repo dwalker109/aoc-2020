@@ -2,17 +2,17 @@ package ship
 
 import "math"
 
-type simpleShip struct {
+type SimpleShip struct {
 	x       int
 	y       int
 	heading int
 }
 
-func NewSimpleShip(x, y, heading int) *simpleShip {
-	return &simpleShip{x, y, heading}
+func NewSimpleShip(x, y, heading int) *SimpleShip {
+	return &SimpleShip{x, y, heading}
 }
 
-func (s *simpleShip) Move(h int, d int) {
+func (s *SimpleShip) Move(h int, d int) {
 	switch h {
 	case 0:
 		s.y += d
@@ -27,7 +27,7 @@ func (s *simpleShip) Move(h int, d int) {
 	}
 }
 
-func (s *simpleShip) MoveDir(o string, d int) {
+func (s *SimpleShip) MoveDir(o string, d int) {
 	switch o {
 	case "N":
 		s.Move(0, d)
@@ -42,15 +42,11 @@ func (s *simpleShip) MoveDir(o string, d int) {
 	}
 }
 
-func (s *simpleShip) Forward(d int) {
+func (s *SimpleShip) Forward(d int) {
 	s.Move(s.heading, d)
 }
 
-func (s *simpleShip) Reverse(d int) {
-	s.Move(s.heading, -d)
-}
-
-func (s *simpleShip) Left(d int) {
+func (s *SimpleShip) Left(d int) {
 	x := s.heading - d
 	if x < 0 {
 		s.heading = 360 + x
@@ -59,11 +55,11 @@ func (s *simpleShip) Left(d int) {
 	}
 }
 
-func (s *simpleShip) Right(d int) {
+func (s *SimpleShip) Right(d int) {
 	s.heading = (s.heading + d) % 360
 }
 
-func (s *simpleShip) Manhattan() int {
+func (s *SimpleShip) Manhattan() int {
 	m := math.Abs(float64(s.x)) + math.Abs(float64(s.y))
 	return int(m)
 }
