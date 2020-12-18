@@ -1,4 +1,4 @@
-package pocket
+package dim3
 
 import (
 	"fmt"
