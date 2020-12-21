@@ -9,14 +9,14 @@ import (
 )
 
 func main() {
-	pt1 := solve("./input.txt")
-	pt2 := solve("./input_part2.txt")
+	pt1 := part1("./input_test.txt")
+	pt2 := part2("./input_test.txt")
 
 	fmt.Println("Part 1: ", pt1)
 	fmt.Println("Part 2: ", pt2)
 }
 
-func solve(p string) int {
+func part1(p string) int {
 	i := make(chan string)
 	go util.StreamInputCustomSplit(i, p, util.SplitOnString("\n\n"))
 
@@ -25,13 +25,26 @@ func solve(p string) int {
 
 	n := 0
 	for _, m := range msgs {
-		valid, _ := validate(m, "0", &compiled, 0)
+		valid, _ := validate([]string{m}, "0", &compiled, 0)
 		if valid {
 			n++
 		}
 	}
 
 	return n
+}
+
+func part2(p string) int {
+	i := make(chan string)
+	go util.StreamInputCustomSplit(i, p, util.SplitOnString("\n\n"))
+
+	rules, msgs := parseInput(i)
+	compiled := compileRules(rules)
+	perms, _ := build("0", &compiled)
+
+	fmt.Println(perms, msgs)
+
+	return 0
 }
 
 func parseInput(i <-chan string) ([]string, []string) {
@@ -75,15 +88,23 @@ func compileRules(rules []string) map[string]rule {
 	return compiled
 }
 
-func validate(msg string, id string, rules *map[string]rule, lvl int) (bool, string) {
+func validate(msg []string, id string, rules *map[string]rule, lvl int) (bool, []string) {
 	r := (*rules)[id]
 
 	// End of a chain
 	if r.class == "term" {
-		return r.abs == string(msg[0]), msg[1:]
+		remainders := make([]string, 0)
+		for _, s := range msg {
+			if s != "" && r.abs == string(s[0]) {
+				remainders = append(remainders, s[1:])
+			}
+		}
+
+		return len(remainders) > 0, remainders
 	}
 
 	// Traverse a chain
+	hits := make([]string, 0)
 Outer:
 	for _, set := range r.chains {
 		rem := msg
@@ -95,12 +116,45 @@ Outer:
 			rem = newRem
 		}
 
-		if lvl == 0 && rem != "" {
-			return false, rem
-		}
-
-		return true, rem
+		hits = append(hits, rem...)
 	}
 
-	return false, msg
+	if lvl == 0 && len(hits) > 0 && hits[0] != "" {
+		return false, hits
+	}
+
+	return len(hits) != 0, hits
+}
+
+func build(id string, rules *map[string]rule) ([]string, bool) {
+	z := make([]map[int]map[int]string, 0)
+
+	var recurse func(string, int) string
+	recurse = func(id string, lvl int) string {
+		r := (*rules)[id]
+		if r.class == "term" {
+			return r.abs
+		}
+
+		x := make(map[int]map[int]string)
+		arr := make([]string, len(r.chains))
+		var rr string
+		for _, or := range r.chains {
+			for i, and := range or {
+				res := recurse(and, lvl+1)
+				arr[i] += res
+				fmt.Println(lvl, i, "Rule", id, "or", or, "and", and, ":", res)
+			}
+			rr = strings.Join(arr, "|")
+		}
+
+		fmt.Println(rr)
+
+		z = append(z, x)
+
+		return ""
+	}
+	recurse(id, 0)
+	fmt.Println(z)
+	return []string{}, false
 }
