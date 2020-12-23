@@ -9,14 +9,14 @@ import (
 )
 
 func main() {
-	pt1 := part1("./input_test.txt")
-	pt2 := part2("./input_test.txt")
+	pt1 := solve("./input.txt")
+	pt2 := solve("./input_part2.txt")
 
 	fmt.Println("Part 1: ", pt1)
 	fmt.Println("Part 2: ", pt2)
 }
 
-func part1(p string) int {
+func solve(p string) int {
 	i := make(chan string)
 	go util.StreamInputCustomSplit(i, p, util.SplitOnString("\n\n"))
 
@@ -32,19 +32,7 @@ func part1(p string) int {
 	}
 
 	return n
-}
 
-func part2(p string) int {
-	i := make(chan string)
-	go util.StreamInputCustomSplit(i, p, util.SplitOnString("\n\n"))
-
-	rules, msgs := parseInput(i)
-	compiled := compileRules(rules)
-	perms, _ := build("0", &compiled)
-
-	fmt.Println(perms, msgs)
-
-	return 0
 }
 
 func parseInput(i <-chan string) ([]string, []string) {
@@ -69,9 +57,9 @@ func compileRules(rules []string) map[string]rule {
 		id, rest := tmp[0], tmp[1]
 
 		// Terminator rule
-		abs := regexp.MustCompile("(a|b)").FindString(rest)
-		if abs != "" {
-			compiled[id] = rule{id, "term", abs, make([][]string, 0)}
+		val := regexp.MustCompile("(a|b)").FindString(rest)
+		if val != "" {
+			compiled[id] = rule{id, "term", val, make([][]string, 0)}
 			continue
 		}
 
@@ -119,42 +107,14 @@ Outer:
 		hits = append(hits, rem...)
 	}
 
-	if lvl == 0 && len(hits) > 0 && hits[0] != "" {
-		return false, hits
+	if lvl == 0 && len(hits) > 0 {
+		for _, h := range hits {
+			if h == "" {
+				return true, []string{}
+			}
+		}
+		return false, []string{}
 	}
 
 	return len(hits) != 0, hits
-}
-
-func build(id string, rules *map[string]rule) ([]string, bool) {
-	z := make([]map[int]map[int]string, 0)
-
-	var recurse func(string, int) string
-	recurse = func(id string, lvl int) string {
-		r := (*rules)[id]
-		if r.class == "term" {
-			return r.abs
-		}
-
-		x := make(map[int]map[int]string)
-		arr := make([]string, len(r.chains))
-		var rr string
-		for _, or := range r.chains {
-			for i, and := range or {
-				res := recurse(and, lvl+1)
-				arr[i] += res
-				fmt.Println(lvl, i, "Rule", id, "or", or, "and", and, ":", res)
-			}
-			rr = strings.Join(arr, "|")
-		}
-
-		fmt.Println(rr)
-
-		z = append(z, x)
-
-		return ""
-	}
-	recurse(id, 0)
-	fmt.Println(z)
-	return []string{}, false
 }
