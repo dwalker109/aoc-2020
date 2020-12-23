@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,14 +11,24 @@ import (
 
 func main() {
 	pt1 := part1("./input.txt")
+	pt2 := part2("./input.txt")
 
 	fmt.Println(pt1)
+	fmt.Println(pt2)
 }
 
 func part1(p string) int {
 	i := make(chan string)
 	p1, p2 := getDecks(i, p)
-	winDeck := play(&p1, &p2)
+	winner := combat(&p1, &p2)
+
+	return winner.score()
+}
+
+func part2(p string) int {
+	i := make(chan string)
+	p1, p2 := getDecks(i, p)
+	winDeck := recursiveCombat(&p1, &p2)
 
 	return winDeck.score()
 }
@@ -44,7 +55,7 @@ func getDecks(i chan string, p string) (p1, p2 deck) {
 	return
 }
 
-func play(p1, p2 *deck) *deck {
+func combat(p1, p2 *deck) *deck {
 	for {
 		c1, c2 := p1.draw(), p2.draw()
 		if c1 > c2 {
@@ -58,7 +69,52 @@ func play(p1, p2 *deck) *deck {
 		}
 	}
 
-	if len(p1.cards) > 1 {
+	if len(p1.cards) > 0 {
+		return p1
+	}
+	return p2
+}
+
+func recursiveCombat(p1, p2 *deck) *deck {
+	infLog := make(map[string]interface{})
+
+	for {
+		infHash := p1.hash() + p2.hash()
+		if _, exists := infLog[infHash]; exists {
+			return p1
+		}
+		infLog[infHash] = new(interface{})
+
+		c1, c2 := p1.draw(), p2.draw()
+
+		// Play a subgame if necessary
+		if len(p1.cards) >= int(c1) && len(p2.cards) >= int(c2) {
+			p1sub := p1.clone(c1)
+			p2sub := p2.clone(c2)
+			winner := recursiveCombat(&p1sub, &p2sub)
+
+			if winner.id == "Player 1" {
+				p1.confiscate(c1, c2)
+			} else {
+				p2.confiscate(c2, c1)
+			}
+
+			continue
+		}
+
+		// No subgame, direct compare
+		if c1 > c2 {
+			p1.confiscate(c1, c2)
+		} else {
+			p2.confiscate(c2, c1)
+		}
+
+		if len(p1.cards) == 0 || len(p2.cards) == 0 {
+			break
+		}
+	}
+
+	if len(p1.cards) > 0 {
 		return p1
 	}
 	return p2
@@ -85,4 +141,20 @@ func (d *deck) score() (n int) {
 		n += (i * int(d.cards[len(d.cards)-i]))
 	}
 	return
+}
+
+func (d *deck) hash() string {
+	s := fmt.Sprint(d.cards)
+	h := sha256.Sum256([]byte(s))
+	return fmt.Sprintf("%x", h)
+}
+
+func (d *deck) clone(n uint64) deck {
+	c := make([]uint64, n)
+	if int(n) == len(d.cards) {
+		copy(c, d.cards)
+	} else {
+		copy(c, d.cards[:n+1])
+	}
+	return deck{d.id, c}
 }
