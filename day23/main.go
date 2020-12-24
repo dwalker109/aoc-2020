@@ -13,117 +13,62 @@ const (
 
 func main() {
 	pt1 := part1(input)
-	pt2 := part2(inputTest)
+	pt2 := part2(input)
 
-	fmt.Println(pt1)
-	fmt.Println(pt2)
+	fmt.Println("Part 1", pt1)
+	fmt.Println("Part 2", pt2)
 }
 
 func part1(in string) string {
-	cups := make([]uint8, len(in))
-	for i := 0; i < len(in); i++ {
-		val, _ := strconv.Atoi(string(in[i]))
-		cups[i] = uint8(val)
-	}
+	numCups := len(in)
+	numTurns := 100
 
-	lblToPos := func(lbl uint8, pool []uint8) int {
-		for i, v := range pool {
-			if v == lbl {
-				return i
-			}
-		}
-		panic("bad label")
-	}
-
-	ccIdx := 0
-	hi := uint8(0)
-	for _, v := range cups {
-		if v > hi {
-			hi = v
-		}
-	}
-
-	for t := 0; t < 100; t++ {
-
-		// No wrap, no shift
-		wip := make([]uint8, 0, len(cups))
-		wip = cups[ccIdx:]
-		if ccIdx > 0 {
-			wip = append(wip, cups[0:ccIdx]...)
-		}
-		take := wip[1:4]
-		rest := wip[4:]
-		wip = append([]uint8{wip[0]}, rest...)
-
-		insLbl := wip[0] - 1
-	insLblChk:
-		for {
-			if insLbl < 1 {
-				insLbl = hi
-			}
-			for _, v := range take {
-				if insLbl == v {
-					insLbl--
-					continue insLblChk
-				}
-			}
-			break
-		}
-		insIdx := lblToPos(insLbl, wip)
-
-		wipCpy := make([]uint8, len(wip))
-		copy(wipCpy, wip)
-		next := append(wipCpy[0:insIdx+1], take...)
-		next = append(next, wip[insIdx+1:]...)
-
-		if ccIdx > 0 {
-			rarr := make([]uint8, 0, len(cups))
-			rarr = append(rarr, next[len(next)-ccIdx:]...)
-			rarr = append(rarr, next[:len(next)-ccIdx]...)
-			cups = rarr
-		} else {
-			cups = next
-		}
-
-		ccIdx = (ccIdx + 1) % len(cups)
-	}
+	cups, initial := unpackCups(in, numCups, numTurns)
+	cups = play(cups, initial, numCups, numTurns)
 
 	sb := new(strings.Builder)
-	cup1 := lblToPos(uint8(1), cups)
-	for _, n := range cups[cup1+1:] {
-		s := strconv.Itoa(int(n))
-		sb.Write([]byte(s))
-	}
-	for _, n := range cups[:cup1] {
-		s := strconv.Itoa(int(n))
-		sb.Write([]byte(s))
+	c1 := (*cups)[uint(1)]
+	tc := c1.nxt
+	for tc != c1 {
+		sb.Write([]byte(strconv.Itoa(int(tc.lbl))))
+		tc = tc.nxt
 	}
 
 	return sb.String()
 }
 
 func part2(in string) int {
-	cups := make(map[uint]*cup)
-	for i := uint(1_000_000); i >= 1; i-- {
-		c := cup{lbl: i}
-		if nc, exists := cups[i+1]; exists {
-			c.nxt = nc
-		}
-		cups[i] = &c
-	}
-	cups[1_000_000].nxt = cups[1]
+	numCups := 1_000_000
+	numTurns := 10_000_000
 
-	hi := 0
+	cups, initial := unpackCups(in, numCups, numTurns)
+	cups = play(cups, initial, numCups, numTurns)
+
+	c1 := (*cups)[uint(1)]
+	return int(c1.nxt.lbl * c1.nxt.nxt.lbl)
+}
+
+type cup struct {
+	lbl uint
+	nxt *cup
+}
+
+type cupTardis map[uint]*cup
+
+func unpackCups(in string, numCups, numTurns int) (*cupTardis, *cup) {
+	// Create all cups, setting .nxt (final nil .nxt will be wrapped later)
+	cups := make(cupTardis)
+	for i := uint(numCups); i >= 1; i-- {
+		cups[i] = &cup{lbl: i, nxt: cups[i+1]}
+	}
+
+	// Set .nxt on seed cups
 	for i := 0; i < len(in); i++ {
 		n1, _ := strconv.Atoi(string(in[i]))
+
 		var n2 int
-
-		if n1 > hi {
-			hi = n1
-		}
-
 		if i+1 == len(in) {
-			n2 = hi + 1
+			n2 = len(in) + 1
 		} else {
 			n2, _ = strconv.Atoi(string(in[i+1]))
 		}
@@ -133,22 +78,48 @@ func part2(in string) int {
 		c1.nxt = c2
 	}
 
-	for i := 0; i < len(in); i++ {
-		val, _ := strconv.Atoi(string(in[i]))
-		c := cups[uint(val)]
-		var nc *cup
-		if c.lbl == uint(len(in)) {
-			nc = cups[uint(len(in))]
-		} else {
-			nc = cups[uint(in[c.lbl+1])]
-		}
-		c.nxt = nc
-	}
+	// Get the current cup from seeds
+	initLbl, _ := strconv.Atoi(string(in[0]))
+	cc := cups[uint(initLbl)]
 
-	return 0
+	// Setup wrapping from max->min
+	if numCups > len(in) {
+		cups[uint(numCups)].nxt = cc
+	} else {
+		lastLbl, _ := strconv.Atoi(string(in[len(in)-1]))
+		cups[uint(lastLbl)].nxt = cc
+	}
+	return &cups, cc
 }
 
-type cup struct {
-	lbl uint
-	nxt *cup
+func play(cupsPtr *cupTardis, cc *cup, numCups, numTurns int) *cupTardis {
+	cups := *cupsPtr
+
+	for t := 1; t <= numTurns; t++ {
+		// Pick up next three
+		puc1 := cc.nxt
+		puc2 := cc.nxt.nxt
+		puc3 := cc.nxt.nxt.nxt
+
+		// Get the destination cup
+		nxtLbl := cc.lbl - 1
+		destc := cups[nxtLbl]
+		for destc == nil || destc == puc1 || destc == puc2 || destc == puc3 {
+			if nxtLbl == 0 {
+				nxtLbl = uint(numCups)
+				destc = cups[nxtLbl]
+				continue
+			}
+			nxtLbl--
+			destc = cups[nxtLbl]
+		}
+
+		cc.nxt = puc3.nxt    // Remove next three (picked up) cups
+		puc3.nxt = destc.nxt // Insert final picked up cup after destination cup
+		destc.nxt = puc1     // Point destination cup at first picked up cup
+
+		cc = cc.nxt
+	}
+
+	return &cups
 }
