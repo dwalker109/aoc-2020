@@ -9,16 +9,31 @@ import (
 
 func main() {
 	pt1 := part1("./input.txt")
+	pt2 := part2("./input.txt")
 
 	fmt.Println("Part 1:", pt1)
+	fmt.Println("Part 2:", pt2)
 }
 
 func part1(p string) int {
+	f := initFloor(p)
+	return f.countBlack()
+}
+func part2(p string) int {
+	f := initFloor(p)
+	for n := 1; n <= 100; n++ {
+		grow(f)
+		art(f)
+	}
+	return f.countBlack()
+}
+
+func initFloor(p string) *floor {
 	i := make(chan string, 128)
 	go util.StreamInput(i, p)
 	instr := parseInput(i)
 	floor := flipd(instr)
-	return floor.countBlack()
+	return &floor
 }
 
 func parseInput(i <-chan string) [][]string {
@@ -41,13 +56,42 @@ func flipd(instr [][]string) floor {
 			t.flip()
 			t.commit()
 		} else {
-			f[l] = &tile{l, struct {
-				pend string
-				curr string
-			}{"b", "b"}}
+			t := newTile(l)
+			t.flip()
+			t.commit()
+			f[l] = t
 		}
 	}
 	return f
+}
+
+func grow(f *floor) {
+	for _, t := range *f {
+		for _, c := range t.adjacentCoords() {
+			if _, exists := (*f)[c]; !exists {
+				(*f)[c] = newTile(c)
+			}
+		}
+	}
+}
+
+func art(f *floor) {
+	for _, t := range *f {
+		bc := 0
+		for _, c := range t.adjacentCoords() {
+			at := (*f)[c]
+			if at != nil && at.col.curr == "b" {
+				bc++
+			}
+		}
+		if t.col.curr == "b" && (bc == 0 || bc > 2) {
+			t.col.pend = "w"
+		}
+		if t.col.curr == "w" && bc == 2 {
+			t.col.pend = "b"
+		}
+	}
+	f.commitAll()
 }
 
 type lens [2]int
@@ -71,6 +115,13 @@ func (l *lens) move(d string) {
 	}
 }
 
+func newTile(c [2]int) *tile {
+	return &tile{c, struct {
+		pend string
+		curr string
+	}{"w", "w"}}
+}
+
 type tile struct {
 	pos [2]int
 	col struct {
@@ -91,7 +142,22 @@ func (t *tile) flip() {
 }
 
 func (t *tile) commit() {
-	t.col.curr = t.col.pend
+	if t.col.curr != t.col.pend {
+		t.col.curr = t.col.pend
+	}
+}
+
+func (t *tile) adjacentCoords() [6][2]int {
+	qr := t.pos
+	adj := [6][2]int{
+		{qr[0] + 1, qr[1]},
+		{qr[0], qr[1] + 1},
+		{qr[0] - 1, qr[1] + 1},
+		{qr[0] - 1, qr[1]},
+		{qr[0], qr[1] - 1},
+		{qr[0] + 1, qr[1] - 1},
+	}
+	return adj
 }
 
 type floor map[[2]int]*tile
@@ -104,4 +170,10 @@ func (f floor) countBlack() int {
 		}
 	}
 	return n
+}
+
+func (f *floor) commitAll() {
+	for _, t := range *f {
+		t.commit()
+	}
 }
