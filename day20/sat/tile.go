@@ -8,22 +8,22 @@ import (
 )
 
 const (
-	units = 10
+	defaultPxGrid = 10
 )
 
 type Tile struct {
 	ID  int
-	raw []byte
-	img [][]byte
+	Raw []byte
+	Img [][]byte
 }
 
-// NewTile inits a new tile from a string - MUST BE 10x10
-func NewTile(s string) *Tile {
+// NewGarbledTile inits a new tile from a string - MUST BE 10x10
+func NewGarbledTile(s string) *Tile {
 	dat := (strings.ReplaceAll(s, "\n", ""))
 	id, raw := dat[5:9], dat[10:]
-	img := make([][]byte, 0, units)
-	for i := 0; i < len(raw); i += units {
-		img = append(img, []byte(raw[i:i+units]))
+	img := make([][]byte, 0, defaultPxGrid)
+	for i := 0; i < len(raw); i += defaultPxGrid {
+		img = append(img, []byte(raw[i:i+defaultPxGrid]))
 	}
 
 	ID, _ := strconv.Atoi(id)
@@ -32,84 +32,95 @@ func NewTile(s string) *Tile {
 	return &t
 }
 
-func (t *Tile) Top() []byte {
-	return t.img[0]
+func NewActualImageTile(s string, pxGrid int) *Tile {
+	img := make([][]byte, 0, pxGrid)
+	for i := 0; i < len(s); i += pxGrid {
+		img = append(img, []byte(s[i:i+pxGrid]))
+	}
+
+	t := Tile{0, []byte(s), img}
+
+	return &t
 }
 
-func (t *Tile) TopRev() []byte {
-	return util.ReverseBytes(t.Top())
+func (t *Tile) top() []byte {
+	return t.Img[0]
 }
 
-func (t *Tile) Rgt() []byte {
-	e := make([]byte, units)
-	for i, row := range t.img {
-		e[i] = row[units-1]
+func (t *Tile) topRev() []byte {
+	return util.ReverseBytes(t.top())
+}
+
+func (t *Tile) rgt() []byte {
+	e := make([]byte, defaultPxGrid)
+	for i, row := range t.Img {
+		e[i] = row[defaultPxGrid-1]
 	}
 	return e
 }
 
-func (t *Tile) RgtRev() []byte {
-	return util.ReverseBytes(t.Rgt())
+func (t *Tile) rgtRev() []byte {
+	return util.ReverseBytes(t.rgt())
 }
 
-func (t *Tile) Btm() []byte {
-	return t.img[units-1]
+func (t *Tile) btm() []byte {
+	return t.Img[defaultPxGrid-1]
 }
 
-func (t *Tile) BtmRev() []byte {
-	return util.ReverseBytes(t.Btm())
+func (t *Tile) btmRev() []byte {
+	return util.ReverseBytes(t.btm())
 }
 
-func (t *Tile) Lft() []byte {
-	e := make([]byte, units)
-	for i, row := range t.img {
+func (t *Tile) lft() []byte {
+	e := make([]byte, defaultPxGrid)
+	for i, row := range t.Img {
 		e[i] = row[0]
 	}
 	return e
 }
 
-func (t *Tile) LftRev() []byte {
-	return util.ReverseBytes(t.Lft())
+func (t *Tile) lftRev() []byte {
+	return util.ReverseBytes(t.lft())
 }
 
-func (t *Tile) Edges() [8][]byte {
+func (t *Tile) edges() [8][]byte {
 	e := [8][]byte{
-		t.Top(),
-		t.TopRev(),
-		t.Rgt(),
-		t.RgtRev(),
-		t.Btm(),
-		t.BtmRev(),
-		t.Lft(),
-		t.LftRev(),
+		t.top(),
+		t.topRev(),
+		t.rgt(),
+		t.rgtRev(),
+		t.btm(),
+		t.btmRev(),
+		t.lft(),
+		t.lftRev(),
 	}
 	return e
 }
 
 func (t *Tile) rotate() {
-	m := make([][]byte, len(t.img))
+	m := make([][]byte, len(t.Img))
 	for i := 0; i < len(m); i++ {
-		m[i] = make([]byte, len(t.img[0]))
+		m[i] = make([]byte, len(t.Img[0]))
 	}
 
 	for y := 0; y < len(m); y++ {
 		for x := 0; x < len(m[0]); x++ {
-			m[x][len(m)-1-y] = t.img[y][x]
+			m[x][len(m)-1-y] = t.Img[y][x]
 		}
 	}
-	t.img = m
+	t.Img = m
 }
 
 func (t *Tile) flip() {
-	m := make([][]byte, len(t.img))
+	m := make([][]byte, len(t.Img))
 	for i := 0; i < len(m); i++ {
-		m[i] = make([]byte, len(t.img[0]))
+		m[i] = make([]byte, len(t.Img[0]))
 	}
 
 	for y := 0; y < len(m); y++ {
 		for x := 0; x < len(m[0]); x++ {
-			m[len(m)-1-y][x] = t.img[y][x]
+			m[len(m)-1-y][x] = t.Img[y][x]
 		}
 	}
-	t.img = m
+	t.Img = m
 }
